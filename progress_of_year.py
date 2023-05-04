@@ -1,5 +1,5 @@
 """
-get the process of year and post to rum group
+get the progress of year and post to rum group
 """
 import calendar
 import datetime
@@ -11,7 +11,7 @@ import time
 from quorum_data_py import feed
 from quorum_mininode_py import MiniNode
 
-__version__ = "0.0.1"
+__version__ = "0.1.0"
 
 logger = logging.getLogger(__name__)
 
@@ -40,13 +40,13 @@ def progress_bar(percent, width=30):
     return f"{bar_chars}{percent:.1f}%"
 
 
-def get_process(dt=None):
+def get_progress(dt=None):
     """获取指定日期的年进度条"""
     today = dt or datetime.datetime.now()
     year = today.year
     days = days_in_year(year)
-    process = day_of_year(today)
-    percent = round(100 * process / days, 2)
+    progress = day_of_year(today)
+    percent = round(100 * progress / days, 2)
     text = "\n".join(
         [
             f"{year} 进度条 / Year Progress {year}",
@@ -73,8 +73,8 @@ def write_jsonfile(jsonfile, data):
         json.dump(data, f, ensure_ascii=False, indent=4)
 
 
-class YearProcess:
-    """YearProcess"""
+class YearProgress:
+    """YearProgress"""
 
     def __init__(self, seed: str, pvtkey: str, jsonfile: str, n: int = 5):
         """n : post every n percent"""
@@ -88,7 +88,7 @@ class YearProcess:
         today = str(datetime.date.today())
         if today in data:
             return
-        text, percent = get_process()
+        text, percent = get_progress()
         if int(percent) % self.n != 0:
             return
         idata = feed.new_post(text)
