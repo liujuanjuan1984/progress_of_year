@@ -1,0 +1,3 @@
+[MASTER]
+disable=
+    C0103, # Variable name "x" doesn't conform to snake_case naming style (invalid-name)
