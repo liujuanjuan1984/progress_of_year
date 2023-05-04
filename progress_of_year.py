@@ -11,24 +11,9 @@ import time
 from quorum_data_py import feed
 from quorum_mininode_py import MiniNode
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 
 logger = logging.getLogger(__name__)
-
-
-def days_in_year(year):
-    """计算指定年份共有多少天"""
-    return 366 if calendar.isleap(year) else 365
-
-
-def format_datetime(dt):
-    """将 datetime 对象转换为指定格式的字符串"""
-    return dt.strftime("%Y, %b %d, %H:%M:%S")
-
-
-def day_of_year(dt):
-    """计算指定日期是当年的第几天"""
-    return dt.toordinal() - datetime.date(dt.year, 1, 1).toordinal() + 1
 
 
 def progress_bar(percent, width=30):
@@ -38,39 +23,6 @@ def progress_bar(percent, width=30):
     # 使用全角和半角字符生成进度条
     bar_chars = "█" * bar_length + "▁" * (width - bar_length)
     return f"{bar_chars}{percent:.1f}%"
-
-
-def get_progress(dt=None):
-    """获取指定日期的年进度条"""
-    today = dt or datetime.datetime.now()
-    year = today.year
-    days = days_in_year(year)
-    progress = day_of_year(today)
-    percent = round(100 * progress / days, 2)
-    text = "\n".join(
-        [
-            f"{year} 进度条 / Year Progress {year}",
-            f"{progress_bar(percent)}",
-            f"北京时间：{format_datetime(today)}",
-        ]
-    )
-    return text, percent
-
-
-def read_jsonfile(jsonfile):
-    """读取 json 文件"""
-    if os.path.exists(jsonfile):
-        with open(jsonfile, "r", encoding="utf-8") as f:
-            data = json.load(f)
-    else:
-        data = {}
-    return data
-
-
-def write_jsonfile(jsonfile, data):
-    """写入 json 文件"""
-    with open(jsonfile, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=4)
 
 
 class YearProgress:
@@ -84,13 +36,37 @@ class YearProgress:
 
     def run(self):
         """run for every day"""
-        data = read_jsonfile(self.jsonfile)
+        if os.path.exists(self.jsonfile):
+            with open(self.jsonfile, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        else:
+            data = {}
+
+        today = datetime.datetime.now()
+        year = today.year
+        days = 366 if calendar.isleap(year) else 365
+        progress = today.toordinal() - datetime.date(today.year, 1, 1).toordinal() + 1
+        percent = round(100 * progress / days, 2)
+        text = "\n".join(
+            [
+                f"{year} 进度条 / Year Progress {year}",
+                f"{progress_bar(percent)}",
+                f"北京时间：{today.strftime('%Y, %b %d, %H:%M:%S')}",
+            ]
+        )
+
+        percent = int(percent)
+        year = str(year)
         today = str(datetime.date.today())
-        if today in data:
+        if year not in data:
+            data[year] = {"sent_days": {}, "sent_progress": []}
+        if today in data[year]["sent_days"]:
             return
-        text, percent = get_progress()
-        if int(percent) % self.n != 0:
+        if percent in data[year]["sent_progress"]:
             return
+        if percent % self.n != 0:
+            return
+
         idata = feed.new_post(text)
         resp = self.rum.api.post_content(idata)
         if "trx_id" not in resp:
@@ -100,5 +76,8 @@ class YearProgress:
             if trx.get("TrxId") == resp["trx_id"]:
                 break
             time.sleep(0.2)
-        data[today] = resp["trx_id"]
-        write_jsonfile(self.jsonfile, data)
+        data[year]["sent_days"][today] = resp["trx_id"]
+        data[year]["sent_progress"].append(percent)
+
+        with open(self.jsonfile, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=4)
